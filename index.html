@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Калькулятор размера выборок для A/B теста by Александра Никулина</title>
+  <style>
+    /* Add some basic styling for the entire page */
+    body {
+        font-family: Arial, sans-serif;
+		background-color: #f5f5f5;
+		padding: 20px;
+		box-sizing: border-box;
+    }
+    /* Style the form elements */
+    form {
+        background-color: #fff;
+		border: 1px solid #ccc;
+		border-radius: 5px;
+		padding: 20px;
+		max-width: 700px;
+		margin: 0 auto;
+		text-align: left;
+    }
+    form label {
+        margin-top: 0;
+		font-weight: bold;
+		font-size: 16px;
+		color: #333;
+    }
+    form input[type="text"] {
+        display: block;
+		width: 100%;
+		height: 40px;
+		margin-bottom: 20px;
+		padding: 0 10px;
+		border: 1px solid #ccc;
+		border-radius: 5px;
+		font-size: 16px;
+		color: #333;
+		box-sizing: border-box;
+    }
+    /* Style the submit button */
+    input[type="submit"] {
+        width: 180px;
+		height: 50px;
+		padding: 10px;
+		background-color: #0099ff;
+		border: none;
+		border-radius: 5px;
+		font-size: 16px;
+		font-weight: bold;
+		color: #fff;
+		cursor: pointer;
+		margin-top: -30px;
+    }
+ </style>
+      <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+      <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+</head>
+<body>
+  <form onsubmit="return false;">
+    <h2>Калькулятор A/B тестов от Александры Никулиной</h2>
+    <p>Этот калькулятор позволяет определить минимальный размер выборок для проведения A/B теста, учитывая различные соотношения групп, тип распределения и альтернативу проверки гипотезы. Подходит для T-test и Z-test.</p>
+    <p><i>*Целую часть десятичной дроби отделяйте точкой, а не запятой. Регистр не важен.</i></p>
+    <label for="distribution">Распределение</label>
+    <input type="text" id="distribution" name="distribution" class="py-input" value="небинарное"><br>
+
+    <label for="alternative">Альтернатива</label>
+    <input type="text" id="alternative" name="alternative" class="py-input" value="двусторонняя"><br>
+
+    <label for="ratio">Ratio (соотношение контрольной группы к тестовой)</label>
+    <input type="text" id="ratio" name="ratio" class="py-input" value="1"><br>
+
+    <label for="power">Статистическая мощность (1−β)</label>
+    <input type="text" id="power" name="power" class="py-input" value="0.8"><br>
+
+    <label for="alpha">Уровень значимости (α)</label>
+    <input type="text" id="alpha" name="alpha" class="py-input" value="0.05"><br>
+
+    <label for="lift">Lift (относительное изменение)</label>
+    <input type="text" id="lift" name="lift" class="py-input" value="0.05"><br>
+
+    <label for="hist_value">Базовое значение метрики</label>
+    <input type="text" id="hist_value" name="hist_value" class="py-input" value="100"><br>
+
+    <label for="dispersion">Дисперсия (только для небинарного распределения)</label>
+    <input type="text" id="dispersion" name="dispersion" class="py-input" value="500"><br>
+
+    <input type="submit" value="Посчитать выборки" id="btn-load" class="py-button" py-click="get_data()">
+    <h3>Результаты</h3>
+    <p>Размер контрольной группы (A):<span id="control-group"></span></p>
+    <p>Размер тестовой группы (B):<span id="test-group"></span></p>
+    <p>Всего:<span id="total"></span></p>
+    <p>Интерпретация:<span id="interpretation"></span></p>
+    <h3>Примечание</h3>
+    <p>Распределение: введите тип распределения ("бинарное" или "небинарное").</p>
+    <p>Альтернатива: введите альтернативу для А/В теста ("односторонняя" или "двусторонняя").</p>
+    <p>Ratio: соотношение контрольной группы к тестовой. Ratio=1 (Если группы разделены 50/50), Ratio=4 (80/20) и так далее. По умолчанию большая группа - контрольная, но если поменять их местами, перерасчет не требуется.</p>
+    <p>Lift — это отличие метрики теста от метрики контроля. Считаем их разницу и делим на контроль. Например, возьмем средний чек в контроле 1005 рублей, в тесте 1200. Тогда прирост = (1200–1005)/1005 = 0.194. Оцениваем по историческим данным.</p>
+    <p>Дисперсию оцениваем выборочной дисперсией по историческим данным. Участвует в рассчете только для небинарного распределения, если у вас бинарное - проигнорируйте это поле.</p>
+    <p>Базовое значение метрики оцениваем по выборочным историческим данным. Если распределение бинарное, то вводите p0: вероятность успеха на выборочных исторических данных (от 0 до 1).</p>
+    <p><a href="https://t.me/AnalystNikulina">Связаться со мной в telegram</a></p>
+  </form>
+  <py-config>
+    packages = ["numpy", "scipy"]
+  </py-config>
+<py-script>
+
+    def get_data():
+
+        import numpy as np
+        from scipy import stats as st
+
+        # Меняем тип данных
+        distribution = str(Element("distribution").element.value)
+        alternative = str(Element("alternative").element.value)
+        ratio = float(Element("ratio").element.value)
+        power = float(Element("power").element.value)
+        alpha = float(Element("alpha").element.value)
+        lift = float(Element("lift").element.value)
+        hist_value = float(Element("hist_value").element.value)
+        dispersion = float(Element("dispersion").element.value)
+        
+        z_beta = st.norm.ppf(1 - power)   # Считаем z_beta, она для всех одинаковая
+        mde = lift * hist_value           # считаем MDE
+
+        # Считаем z_alpha, она меняется в зависимости от альтернативы
+        if alternative.lower() == 'двусторонняя':
+            z_alpha = st.norm.ppf(alpha / 2)
+        elif alternative.lower() == 'односторонняя':
+            z_alpha = st.norm.ppf(alpha)
+        
+        #print(distribution,alternative,ratio,power,alpha,lift,p0,dispersion,hist_value)
+
+        # Считаем размер меньшей (тестовой) выборки, если распределение небинарное
+        if distribution.lower() == 'небинарное': 
+            n_little = round(((ratio + 1) / ratio) * ((dispersion * (z_beta + z_alpha)**2) / mde**2))
+            interpretation = ' При таком размере выборок и дисперсии не больше заданной, в случае отклонения на MDE (lift * базовое значение метрики), вероятность отвергнуть гипотезу не меньше заданной мощности.'
+
+        # Считаем размер меньшей (тестовой) выборки, если распределение бинарное
+        elif distribution.lower() == 'бинарное':
+            n_little = round(((ratio + 1) / ratio) * ((hist_value * (1 - hist_value) * (z_beta + z_alpha)**2) / mde**2))
+            interpretation = ' При таком размере выборок, в случае отклонения на MDE (lift * p0), вероятность отвергнуть гипотезу не меньше заданной мощности.'
+
+        n_big = round(n_little * ratio)   # Считаем размер большей выборки (контрольной)
+        total = n_little + n_big          # Считаем общий размер 
+
+        Element('control-group').write(n_big)
+        Element('test-group').write(n_little)
+        Element('total').write(total)
+        Element('interpretation').write(interpretation)
+        
+
+</py-script>
+  
+</body>
+</html>
