@@ -18,4 +18,4 @@
 ### Особенности разработки
 Калькулятор написан на html с использованием библиотеки Python PyScript, которая позволяет встраивать код Python в html страницу для быстрых и точных вычислений. Благодаря использованию готовых библиотек Python, не нужно писать все вычисления с нуля. Вычисления производятся на стороне пользователя, без бэкенда.
  
-[Ссылка на калькулятор](https://alexandra-nikulina-bug-free-rotary-phone-7g9rq7ppg6p2xxwp-5500.preview.app.github.dev/index.html)
+[Ссылка на калькулятор](https://alexandra-nikulina.github.io/calculator_sample_size_for_ab_test/)
